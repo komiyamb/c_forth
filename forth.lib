@@ -1,0 +1,25 @@
+create ] create ] [ '{ name
+{ ,[ [ '} name immediate
+{ r> drop } 'exit name
+
+{ compile not compile branch-if compile nop here } 'if name immediate
+{ compile nop here swap ! } 'then name immediate
+
+{ 0 swap - } 'negate name
+{ dup 0 < if negate then } 'abs name
+{ compile 1 compile branch-if compile nop here swap compile nop here swap ! } 'else name immediate
+
+{ compile nop here } 'begin name immediate
+{ compile 1 compile branc-if compile nop here ! } 'again name immediate
+
+{ 2 * } 'double name
+{ branch-if double 'not_doubling print } 'itd name
+{ 'hello print exit 'world print } 'exit-test name
+
+{ [ 'fact name ]  dup 1 - dup 1 > if fact then * }
+
+{ 't-cause print } 't-print name
+{ 'f-cause print } 'f-print name
+{ 'all-cause print } 'a-print name
+{ if t-print else f-print then a-print } 'if-test name
+

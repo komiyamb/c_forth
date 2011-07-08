@@ -1,0 +1,11 @@
+OPTION = -Wall -falign-functions
+CC = gcc
+forth.out: forth.c
+	$(CC) $< -o $@ $(OPTION) -O3
+debug: forth.c
+	$(CC) $< -o $@ $(OPTION) -g -DDEBUG 
+clean:
+	rm -f forth.out debug *.stackdump
+	rm -i *~
+
+forth.c: forth.h
