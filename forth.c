@@ -16,7 +16,7 @@ char* lookup_symbol(char* name)
 {
   int i;
   for(i = 0; i < ns_index; i++){
-    if(!strcmp(name, name_space + i){
+    if(!strcmp(name, name_space + i)){
 	return name_space + i;
     }
   }
