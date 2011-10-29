@@ -260,8 +260,8 @@ void F_immediate(void)
 
 void F_fetch(void) /* @ */
 {
-  forth_obj ret, tmp = get_thread(pop(&pstack));
-  set_thread(&ret, *tmp);
+  forth_obj ret, *tmp = get_thread(pop(&pstack));
+  set_thread(&ret, tmp);
   push(ret, &pstack);
   pc++;
 }
@@ -504,8 +504,7 @@ void forth_handle_not_found(char* v)
 
 int main(void)
 {
-  char v[STDIN_SIZE], sym[FORTH_WORD_NAME_SIZE];
-  int ret, symlen;
+  char v[BUF_SIZE], *ret, *last;
 
   init_stack(&rstack);
   init_stack(&pstack);
@@ -514,17 +513,12 @@ int main(void)
   forth_install_stdlib();
 
   while(1){
-    fgets(v, STDIN_SIZE, stdin);
+    fgets(v, BUF_SIZE, stdin);
     //    dprintf(("fgets:(%s)\n",v));
-    symlen = 0;
-    do{
-      ret = sscanf(v + symlen, "%s", sym);
-      //      dprintf(("sscanf=(%d),parce:(%s)\n", ret, sym));
-      if(ret == 0 || ret == EOF){ break;}
-      symlen += strlen(sym) + 1;
-      //      dprintf(("strlen(%s)=(%d)\n", sym, symlen)); 
-      my_forth(sym);
-    }while(1);
+    for(ret = v; ret != NULL; ret = last){
+      ret = strtok_r(ret, " ", &last);
+      my_forth(ret);
+    }
   }
   return 0;
 }
