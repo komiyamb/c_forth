@@ -1,13 +1,13 @@
 #include "forth.h"
 
 int compiling = FALSE;
-forth_exp* pc;
+forth_obj* pc;
 forth_stack rstack, pstack;
 
 forth_word dict[FORTH_DICT_SIZE];
 int dict_index = 0;
 
-forth_exp forth_thread_code[FORTH_THREAD_SIZE];
+forth_obj forth_thread_code[FORTH_THREAD_SIZE];
 int thread_index = 0;
 
 char name_space[NAME_SPACE_SIZE];
@@ -47,10 +47,10 @@ char* add_name(char* name)
   return ret;
 }
 
-forth_exp str_to_exp(char* str)
+forth_obj str_to_exp(char* str)
 {
   int tmp = atoi(str);
-  forth_exp ret;
+  forth_obj ret;
 
   if((str[0] != '0') && (tmp == 0)){//string
     set_sym(&ret, add_name(str));
@@ -72,14 +72,14 @@ forth_word* forth_lookup(char* w)
   return NULL;
 }
 
-char* forth_dict_name(forth_exp* exp)
+char* forth_dict_name(forth_obj* exp)
 {
   int i;
   for(i = dict_index - 1; i >= 0; i--){
-    forth_exp *tmp = dict[i].thread;
+    forth_obj *tmp = dict[i].thread;
     //dprintf(("comp(%p),(%p)\n", dict[i].thread, exp));
     if(tmp == exp ||
-	(function_p(*tmp) && function_p(*exp)
+	(prim_p(*tmp) && prim_p(*exp)
 	 && (get_prim(*tmp) == get_prim(*exp)))){
       return dict[i].name;
     }
@@ -93,15 +93,15 @@ void forth_inner_interpreter(void)
      dprintf(("before exec.pc=%p,rstack.index=%d\n", (int*)pc, rstack.index));
     if(pc_end_p(*pc)){
       pc = get_thread(pop(&rstack));
-    }else if(function_p(*pc)){
-      dprintf(("function_p\n"));
+    }else if(prim_p(*pc)){
+      dprintf(("prim_p\n"));
       exec_prim(pc);
     }else if(thread_p(*pc)){
-      forth_exp tmp;
+      forth_obj tmp;
       set_thread(&tmp, pc + 1);
       dprintf(("thread_p\n"));
       push(tmp, &rstack);
-      pc = get_thread((forth_exp)pc->thread);
+      pc = get_thread((forth_obj)pc->thread);
     }else{
       dprintf(("push pstack\n"));
       push(*pc, &pstack);
@@ -115,7 +115,7 @@ void forth_inner_interpreter(void)
 
 void add_forth_prim(char* name, int immediate, void (*func)())
 {
-  forth_exp tmp;
+  forth_obj tmp;
 
   dict[dict_index].name = add_name(name);
   dict[dict_index].immediate = immediate;
@@ -148,7 +148,7 @@ void F_nop(void)
 void F_mul(void) /* * */
 {
   int arg1, arg2;
-  forth_exp ret;
+  forth_obj ret;
   arg1 = get_num(pop(&pstack));
   arg2 = get_num(pop(&pstack));
   set_num(&ret, arg1 * arg2);
@@ -164,14 +164,14 @@ void F_drop(void)
 
 void F_dup(void)
 {
-  forth_exp d = peek(&pstack);
+  forth_obj d = peek(&pstack);
   push(d, &pstack);
   pc++;
 }
 
 void F_swap(void)
 {
-  forth_exp arg1, arg2;
+  forth_obj arg1, arg2;
   arg1 = pop(&pstack);
   arg2 = pop(&pstack);
   push(arg1, &pstack);
@@ -181,7 +181,7 @@ void F_swap(void)
 
 void F_print(void)
 {
-  forth_exp e = pop(&pstack);
+  forth_obj e = pop(&pstack);
   dprintf(("print(%x)\n", e.num));
   if(get_type(e) == TYPE_FIXNUM){
     printf("%d\n", get_num(e));
@@ -196,14 +196,14 @@ void F_print(void)
 
 void F_to_r(void) /* >r */
 {
-  forth_exp tmp = pop(&pstack);
+  forth_obj tmp = pop(&pstack);
   push(tmp, &rstack);
   pc++;
 }
 
 void F_r_to(void) /* r> */
 {
-  forth_exp tmp = pop(&rstack);
+  forth_obj tmp = pop(&rstack);
   push(tmp, &pstack);
   pc++;
   dprintf(("r>p\n"));
@@ -225,7 +225,7 @@ void F_r_bracket(void) /* ] */
 
 void F_create(void)
 {
-  forth_exp tmp;
+  forth_obj tmp;
   dprintf(("create! thread=(%p)\n", forth_thread_code + thread_index));
   thread_index++;
 
@@ -260,7 +260,7 @@ void F_immediate(void)
 
 void F_fetch(void) /* @ */
 {
-  forth_exp ret, tmp = get_thread(pop(&pstack));
+  forth_obj ret, tmp = get_thread(pop(&pstack));
   set_thread(&ret, *tmp);
   push(ret, &pstack);
   pc++;
@@ -268,7 +268,7 @@ void F_fetch(void) /* @ */
 
 void F_store(void)/* ! */
 {
-  forth_exp tmp1 = pop(&pstack),
+  forth_obj tmp1 = pop(&pstack),
     tmp2 = pop(&pstack),
     *loc = get_thread(tmp1),
     *thread = get_thread(tmp2);
@@ -281,7 +281,7 @@ void F_store(void)/* ! */
 
 void F_not(void)
 {
-  forth_exp tmp = pop(&pstack);
+  forth_obj tmp = pop(&pstack);
   set_num(&tmp, !get_num(tmp));
   push(tmp, &pstack);
   pc++;
@@ -289,7 +289,7 @@ void F_not(void)
 
 void F_oddp(void)
 {
-  forth_exp tmp = pop(&pstack);
+  forth_obj tmp = pop(&pstack);
   set_num(&tmp, !(get_num(tmp) % 2));
   push(tmp, &pstack);
   pc++;
@@ -297,14 +297,14 @@ void F_oddp(void)
 
 void F_evenp(void)
 {
-  forth_exp tmp = pop(&pstack);
+  forth_obj tmp = pop(&pstack);
   set_num(&tmp, get_num(tmp) % 2);
   push(tmp, &pstack);
   pc++;
 }
 
 #define def_bin(name, sym) void F_##name(void){ \
-  forth_exp ret, arg1 = pop(&pstack), arg2 = pop(&pstack); \
+  forth_obj ret, arg1 = pop(&pstack), arg2 = pop(&pstack); \
   set_num(&ret, get_num(arg1) sym get_num(arg2)); \
   push(ret, &pstack); \
   pc++; \
@@ -322,7 +322,7 @@ def_bin(or, ||)
 
 void F_max(void)
 {
-  forth_exp ret, arg1 = pop(&pstack), arg2 = pop(&pstack);
+  forth_obj ret, arg1 = pop(&pstack), arg2 = pop(&pstack);
   int a1 = get_num(arg1), a2 = get_num(arg2);
   set_num(&ret, (a1 > a2) ? a1 : a2);
   push(ret, &pstack);
@@ -331,7 +331,7 @@ void F_max(void)
 
 void F_min(void)
 {
-  forth_exp ret, arg1 = pop(&pstack), arg2 = pop(&pstack);
+  forth_obj ret, arg1 = pop(&pstack), arg2 = pop(&pstack);
   int a1 = get_num(arg1), a2 = get_num(arg2);
   set_num(&ret, (a1 < a2) ? a1 : a2);
   push(ret, &pstack);
@@ -342,7 +342,7 @@ void F_min(void)
 
 void F_branch_if(void)
 {
-  forth_exp tmp = pop(&pstack);
+  forth_obj tmp = pop(&pstack);
     dprintf(("branch:(%p)(%p)\n", pc+1,get_thread(pc[1])));
   if(pc_end_p(pc[1])){
     pc++;
@@ -359,7 +359,7 @@ void F_compile(void)
 
 void F_here(void)
 {
-  forth_exp tmp;
+  forth_obj tmp;
   set_thread(&tmp, forth_thread_code + thread_index - 1);
   push(tmp, &pstack);
   pc++;
@@ -439,7 +439,7 @@ void forth_install_prims(void)
 
 }
 
-void forth_compile_in(forth_exp exp)
+void forth_compile_in(forth_obj exp)
 {
   dprintf(("compile(%4x)type=%d\n",
 	   ((int)exp.num & ~TYPE_MASK), get_type(exp)));
@@ -492,7 +492,7 @@ void forth_handle_not_found(char* v)
   }else{
     int tmp = atoi(v);
     if((tmp != 0) || v[0] == '0'){
-      forth_exp e;
+      forth_obj e;
       set_num(&e, tmp);
       push(e, &pstack);
     }else{
@@ -571,7 +571,7 @@ void print_stack(forth_stack* st)
   printf("print_stack:%s\n", (st == &pstack) ? "pstack" : "rstack");
   for(i = 0; i< st->index; i++){
     printf("%2x", i);
-    print_forth_exp(st->stack + i);
+    print_forth_obj(st->stack + i);
   }
 }
 
@@ -590,11 +590,11 @@ void print_thread(void)
   int i;
   printf("print_thread\n");
   for(i = 0; i <= thread_index; i++){
-    print_forth_exp(forth_thread_code + i);
+    print_forth_obj(forth_thread_code + i);
   }
 }
 
-void print_forth_exp(forth_exp* e)
+void print_forth_obj(forth_obj* e)
 {
   printf("%p(%04x):", e, get_type(*e));
   switch(get_type(*e)){

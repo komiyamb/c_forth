@@ -93,7 +93,7 @@ void set_prim(forth_exp* e, type_gp f)
   e->prim = (type_gp)((int)f | TYPE_PRIM);
 }
 
-int function_p(forth_exp pc)
+int prim_p(forth_exp pc)
 {
   return get_type(pc) == TYPE_PRIM;
 }
